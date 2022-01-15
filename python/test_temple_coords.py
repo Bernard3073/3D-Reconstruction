@@ -17,9 +17,14 @@ M = max(img_1.shape[0], img_1.shape[1])
 F = sub.eight_point(pts1, pts2, M)
 # 3. Load points in image 1 from data/temple_coords.npz
 temp_coord = np.load("./data/temple_coords.npz")
+pts1_start = temp_coord['pts1']
 # 4. Run epipolar_correspondences to get points in image 2
-pts2_new = sub.epipolar_correspondences(img_1, img_2, F, pts1)
-hlp.epipolarMatchGUI(img_1, img_2, F)
+# hlp.epipolarMatchGUI(img_1, img_2, F)
+pts2_array = []
+for p1 in pts1_start:
+    pts2_new = sub.epipolar_correspondences(img_1, img_2, F, p1)
+    pts2_array.append(pts2_new)
+pts2_array = np.array(pts2_array)
 # 5. Compute the camera projection matrix P1
 
 # 6. Use camera2 to get 4 camera projection matrices P2

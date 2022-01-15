@@ -5,7 +5,7 @@ Submission Functions
 
 # import packages here
 import numpy as np
-
+import cv2
 import helper
 
 """
@@ -44,6 +44,19 @@ def eight_point(pts1, pts2, M):
     return F_norm
 
 
+'''
+Returns a 2D Gaussian kernel
+Input:  size, the kernel size (will be square)
+        sigma, the sigma Gaussian parameter
+Output: kernel, (size, size) array with the centered gaussian kernel
+'''
+def gaussianWindow(size, sigma=3):
+    x = np.linspace(-(size//2), size//2, size)
+    x /= np.sqrt(2)*sigma
+    x2 = x**2
+    kernel = np.exp(- x2[:, None] - x2[None, :])
+    return kernel / kernel.sum()
+
 """
 Q3.1.2 Epipolar Correspondences
        [I] im1, image 1 (H1xW1 matrix)
@@ -53,8 +66,58 @@ Q3.1.2 Epipolar Correspondences
        [O] pts2, points in image 2 (Nx2 matrix)
 """
 def epipolar_correspondences(im1, im2, F, pts1):
-    # replace pass by your implementation
-    pass
+    # Convert to grayscale for better correspondence
+    im1 = cv2.cvtColor(im1, cv2.COLOR_BGR2GRAY)
+    im2 = cv2.cvtColor(im2, cv2.COLOR_BGR2GRAY)
+    # x1, y1 = pts1[0,0], pts1[0,1]
+    x1, y1 = pts1
+    # Find epipolar line
+    l = F @ [x1, y1, 1]
+    s = np.sqrt(l[0]**2 + l[1]**2)
+    l = l/s
+    # search over the set of pixels that lie along the epipolar line
+    # Find start and end points for epipolar line
+    sy, sx = im2.shape
+    # epipolar line eq: [a, b, c].T @ [x, y, z] = 0 (l = [a, b, c])
+    if l[0] != 0:
+        ye, ys = sy-1, 0
+        xe, xs = round(-(l[1] * ye + l[2])/l[0]), round(-(l[1] * ys + l[2])/l[0])
+    else:
+        xe, xs = sx-1, 0
+        ye, ys = round(-(l[0] * xe + l[2])/l[1]), round(-(l[0] * xs + l[2])/l[1])
+
+    # Generate (x, y) test points
+    N = max(abs(ye - ys), abs(xe - xs)) + 1
+    xp = np.round(np.linspace(xs, xe, N)).astype('int')
+    yp = np.round(np.linspace(ys, ye, N)).astype('int')
+    # Correspondence parameters
+    limit = 40
+    win_size = 9
+    x2, y2 = None, None
+    best_score = np.finfo('float').max
+
+    for x, y in zip(xp, yp):
+        # Check if test point is close within limit
+        if (abs(x-x1) > limit) or (abs(y-y1) > limit): continue
+
+        # Check if it's possible to create a window
+        if not ((y-win_size//2 >= 0) and (y+1+win_size//2 < sy) \
+            and (x-win_size//2 >= 0) and (x+1+win_size//2 < sx)): continue
+
+        # Create windows
+        win1 = im1[y1-win_size//2:y1+1+win_size//2, x1-win_size//2:x1+1+win_size//2]
+        win2 = im2[y-win_size//2:y+1+win_size//2, x-win_size//2:x+1+win_size//2]
+        
+        # Apply gaussian kernel and compute SSD error
+        gaussian_kernel = gaussianWindow(win_size)
+        score = np.sum((gaussian_kernel * (win1 - win2))**2)
+
+        # Save best matching points
+        if score < best_score:
+            best_score = score
+            x2, y2 = x, y
+
+    return np.array([x2, y2])
 
 
 """
