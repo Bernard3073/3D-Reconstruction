@@ -4,7 +4,9 @@ Submission Functions
 """
 
 # import packages here
+import numpy as np
 
+import helper
 
 """
 Q3.1.1 Eight Point Algorithm
@@ -14,8 +16,32 @@ Q3.1.1 Eight Point Algorithm
        [O] F, the fundamental matrix (3x3 matrix)
 """
 def eight_point(pts1, pts2, M):
-    # replace pass by your implementation
-    pass
+    # scale the data by dividing each coordinate by M
+    pts1 = pts1/M
+    pts2 = pts2/M
+    A = []
+    for p1, p2 in zip(pts1, pts2):
+        A.append([p2[0]*p1[0], p2[0]*p1[1], p2[0], p2[1]*p1[0], p2[1]*p1[1], p2[1], p1[0], p1[1], 1])
+    A = np.array(A)
+    A.reshape((len(pts1), 9))
+    # Solve A using SVD
+    U, S, V = np.linalg.svd(A)
+    V = V.T
+    # last col = solution
+    sol = V[:,-1]
+    F = sol.reshape((3, 3))
+    U_F, S_F, V_F = np.linalg.svd(F)
+    # Rank 2 constraint(set the smallest singular value to 0)
+    S_F[-1] = 0
+    S_new = np.diag(S_F)
+    # Recompute normalized F
+    F_new = U_F @ S_new @ V_F
+    # Refine F by using local minimization
+    F = helper.refineF(F, pts1, pts2)
+    T = np.diag([1/M, 1/M, 1])
+    F_norm = T.T @ F_new @ T
+    F_norm = F_norm / F_norm[-1, -1]
+    return F_norm
 
 
 """
@@ -39,8 +65,16 @@ Q3.1.3 Essential Matrix
        [O] E, the essential matrix (3x3 matrix)
 """
 def essential_matrix(F, K1, K2):
-    # replace pass by your implementation
-    pass
+    E = K2.T @ F @ K1
+    U, S, V = np.linalg.svd(E)
+    # Due to the noise in K, the singular values of E are not necessarily (1, 1, 0)
+    # This can be corrected by reconstructing it with (1, 1, 0) singular values
+    S[0] = 1
+    S[1] = 1
+    S[2] = 0
+    S_new = np.diag(S)
+    E_new = U @ S_new @ V
+    return E_new
 
 
 """
