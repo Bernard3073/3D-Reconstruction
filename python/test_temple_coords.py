@@ -36,14 +36,24 @@ E = sub.essential_matrix(F, K1, K2)
 M2s = hlp.camera2(E)
 # 7. Run triangulate using the projection matrices
 bestP2 = None
+error = 0
+minError = float('inf')
 for i in range(M2s.shape[2]):
     P2 = K2 @ M2s[:, :, i]
     P = sub.triangulate(P1, pts1, P2, pts2)    
     # 8. Figure out the correct P2
+    # check the performance by looking at the re-projection error
+    proj_1 = P1 @ np.append(P[i], 1)
+    proj_2 = P2 @ np.append(P[i], 1)
+    # compute the mean Euclidean error between projected 2D points and the given pts1
+    error += np.linalg.norm(proj_1[:2]/proj_1[-1] - pts1[i])**2 + np.linalg.norm(proj_2[:2]/proj_2[-1] - pts2[i])**2  
     # ensure all z values are positive
     if np.all(P[:, -1] > 0):
-        P2 = M2s[:, :, i]
-        bestP2 = P2
+        if error < minError:
+            P_best = P
+            minError = error
+            P2 = M2s[:, :, i]
+            bestP2 = P2
 P2 = bestP2
 # 9. Scatter plot the correct 3D points
 fig = plt.figure()
@@ -51,6 +61,6 @@ ax = plt.axes(projection='3d')
 ax.set_xlabel('x')
 ax.set_ylabel('y')
 ax.set_zlabel('z')
-ax.scatter(P[:, 0], P[:, 1], P[:, 2], s=3)
+ax.scatter(P_best[:, 0], P_best[:, 1], P_best[:, 2], s=3)
 plt.show()
 # 10. Save the computed extrinsic parameters (R1,R2,t1,t2) to data/extrinsics.npz
