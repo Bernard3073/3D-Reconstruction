@@ -149,8 +149,41 @@ Q3.1.4 Triangulation
        [O] pts3d, 3D points in space (Nx3 matrix)
 """
 def triangulate(P1, pts1, P2, pts2):
-    # replace pass by your implementation
-    pass
+    P1_first_row = P1[0, :]
+    P1_second_row = P1[1, :]
+    P1_third_row = P1[2, :]
+    P2_first_row = P2[0, :]
+    P2_second_row = P2[1, :]
+    P2_third_row = P2[2, :]
+    pts3d = []
+    error = 0
+    minError = float('inf')
+    for i in range(pts1.shape[0]):
+        # take two rows from both camera to form A
+        A = np.array([pts1[i, 1] * P1_third_row - P1_second_row])
+        A = np.vstack((A, np.array([P1_first_row - pts1[i, 0] * P1_third_row])))
+        A = np.vstack((A, np.array([pts2[i, 1] * P2_third_row - P2_second_row])))
+        A = np.vstack((A, np.array([P2_first_row - pts2[i, 0] * P2_third_row])))
+        # A = [pts1[i, 0] * P1[2, :] - P1[0, :],
+        #      pts1[i, 1] * P1[2, :] - P1[1, :],
+        #      pts2[i, 0] * P2[2, :] - P2[0, :],
+        #      pts2[i, 1] * P2[2, :] - P2[1, :]]
+        _, _, V = np.linalg.svd(A)
+        # sol = V[-1, :]/V[-1, -1]
+        V = V.T
+        sol = V[:, -1]/V[-1, -1]
+        pts3d.append(sol[:3])
+        # check the performance by looking at the re-projection error
+        proj_1 = P1 @ sol
+        proj_2 = P2 @ sol
+        # compute the mean Euclidean error between projected 2D points and the given pts1
+        error += np.linalg.norm(proj_1[:2]/proj_1[-1] - pts1[i])**2 + np.linalg.norm(proj_2[:2]/proj_2[-1] - pts2[i])**2  
+        if error < minError:
+            pts3d_best = pts3d
+            minError = error
+
+    # M2s = helper.camera2(E)
+    return np.array(pts3d_best)
 
 
 """
