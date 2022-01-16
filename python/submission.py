@@ -187,8 +187,26 @@ Q3.2.1 Image Rectification
            t1p t2p, rectified translation vectors (3x1 matrix)
 """
 def rectify_pair(K1, K2, R1, R2, t1, t2):
-    # replace pass by your implementation
-    pass
+    # compute the optical centers c1 and c2 of each camera
+    c1 = -np.linalg.inv(K1 @ R1) @ (K1 @ t1)
+    c2 = -np.linalg.inv(K2 @ R2) @ (K2 @ t2)
+    # compute the new rotation matrix R_til
+    r1 = np.ravel((c1 - c2) / np.linalg.norm(c1 - c2))
+    r2 = np.cross(R1[2].T, r1)
+    r3 = np.cross(r2, r1)
+    R_til = np.array([r1, r2, r3])
+    # new rotation matrices
+    R1p = R2p = R_til
+    # new intrinsic paramters
+    K1p = K2p = K2
+    # new translation vectors
+    t1p = -R_til @ c1
+    t2p = -R_til @ c2
+    # the rectification matrices of the cameras
+    M1 = (K1p @ R1p) @ np.linalg.inv(K1 @ R1)
+    M2 = (K2p @ R2p) @ np.linalg.inv(K2 @ R2)
+    
+    return M1, M2, K1p, K2p, R1p, R2p, t1p, t2p
 
 
 """
