@@ -267,9 +267,26 @@ Q3.3.1 Camera Matrix Estimation
        [O] P, camera matrix (3x4 matrix)
 """
 def estimate_pose(x, X):
-    # replace pass by your implementation
-    pass
+    '''
+    [x, y, 1].T = P @ [X, Y, Z, 1].T
+    '''
+    #Compute the homography between two sets of points
+    A = []
+    for i in range(x.shape[0]):
+        X1, X2, X3 = X[i][0], X[i][1], X[i][2]
+        x1, x2 = x[i][0], x[i][1]
+        A.append([X1, X2, X3, 1, 0, 0, 0, 0, -x1 * X1, -x1 * X2, -x1 * X3, -x1])
+        A.append([0, 0 , 0, 0, X1, X2, X3, 1, -x2 * X1, -x2 * X2, -x2 * X3, -x2])
 
+    A = np.array(A)
+    _, _, V_t = np.linalg.svd(A)
+    # the solution will be the last column
+    # (the eigenvector corresponding to the smallest eigenvalue) of the orthonormal matrix 
+    # normalize by dividing by the element at (3,4) 
+    # h = V_t[-1, :] / V_t[-1, -1]
+    P = np.reshape(V_t[-1, :], (3, 4))
+    
+    return P
 
 """
 Q3.3.2 Camera Parameter Estimation
@@ -279,5 +296,13 @@ Q3.3.2 Camera Parameter Estimation
            t, camera extrinsics translation (3x1 matrix)
 """
 def estimate_params(P):
-    # replace pass by your implementation
-    pass
+    # compute the camera center by using SVD
+    _, _, V = np.linalg.svd(P)
+    V = V.T
+    c = V[-1, :] / V[-1, -1]
+    # compute the intrinsic K and rotation R by using QR decomposition
+    # K is right upper triangle matrix and R is the orthonormal matrix
+    R, K = np.linalg.qr(P[:, :-1]) # drop the last element: 1
+    # compute the translation by t = -Rc
+    t = -R @ c[:-1] # drop the last element: 1
+    return K, R, t
