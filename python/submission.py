@@ -7,7 +7,7 @@ Submission Functions
 import numpy as np
 import cv2
 import helper
-
+import scipy.signal
 """
 Q3.1.1 Eight Point Algorithm
        [I] pts1, points in image 1 (Nx2 matrix)
@@ -218,8 +218,21 @@ Q3.2.2 Disparity Map
        [O] dispM, disparity map (H1xW1 matrix)
 """
 def get_disparity(im1, im2, max_disp, win_size):
-    # replace pass by your implementation
-    pass
+    left_array = np.asarray(im1)
+    right_array = np.asarray(im2)
+    left_array = left_array.astype(int)
+    right_array = right_array.astype(int)
+    height, width = left_array.shape
+    dispM = np.zeros((height, width))
+    w = int((win_size-1)/2)
+    mask = np.ones((win_size, win_size))
+    compare_func = np.zeros((height, width, max_disp+1))
+    im1pad =  np.pad(im1,[(0, 0), (max_disp, max_disp)])
+    for d in range(max_disp+1):
+        dist_func = (im2 - im1pad[:,max_disp-d:max_disp-d + width])**2 
+        compare_func[:, :, d] = scipy.signal.convolve2d(dist_func, mask)[w:w+height, w:w+width]
+    dispM = np.argmin(compare_func, axis=2)
+    return dispM
 
 
 """
@@ -231,8 +244,20 @@ Q3.2.3 Depth Map
        [O] depthM, depth map (H1xW1 matrix)
 """
 def get_depth(dispM, K1, K2, R1, R2, t1, t2):
-    # replace pass by your implementation
-    pass
+    # for simplicity, assume that b = || c1- c2 ||, f = K1(1, 1)
+    f = K1[0,0]
+    # compute the optical centers c1 and c2 of each camera
+    c1 = -np.linalg.inv(K1 @ R1) @ (K1 @ t1)
+    c2 = -np.linalg.inv(K2 @ R2) @ (K2 @ t2)
+    b = np.linalg.norm(c1 - c2)
+    depthM = np.zeros_like(dispM)
+    for y in range(dispM.shape[0]):
+        for x in range(dispM.shape[1]):
+            if dispM[y, x] == 0:
+                depthM[y, x] = 0
+            else:
+                depthM[y, x] = int(b * f / dispM[y, x])
+    return depthM
 
 
 """

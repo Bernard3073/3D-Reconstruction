@@ -64,3 +64,8 @@ ax.set_zlabel('z')
 ax.scatter(P_best[:, 0], P_best[:, 1], P_best[:, 2], s=3)
 plt.show()
 # 10. Save the computed extrinsic parameters (R1,R2,t1,t2) to data/extrinsics.npz
+R1 = np.eye(3)
+t1 = np.zeros((3, 1))
+R2 = P2[:, :3]
+t2 = P2[:, 3:4]
+np.savez('./data/extrinsics.npz', R1=R1, R2=R2, t1=t1, t2=t2)
